@@ -7,13 +7,13 @@ Système de **Retrieval-Augmented Generation agentique** construit avec LangGrap
 ## Architecture
 
 ```
-Documents PDF
-     │
-     ▼
+            Documents PDF
+                   │
+                   ▼
 ┌────────────────────────────────────────┐
 │           Extraction (src/core/utils)  │
 │  pymupdf4llm ──► List[Document]        │
-│  Docling     ──► TextChunk             │
+│  DocChunks   ──► TextChunk             │
 │                  TableChunk            │
 │                  ImageChunk + VLM desc │
 └────────────────────┬───────────────────┘
@@ -21,28 +21,30 @@ Documents PDF
                      ▼
 ┌────────────────────────────────────────┐
 │           Chunking                     │
-│  split_chunk    (taille fixe)          │
 │  semantic_chunk (ruptures sémantiques) │
 └────────────────────┬───────────────────┘
                      │
                      ▼
 ┌────────────────────────────────────────┐
-│           Indexation                   │
-│  Embedder ──► ChromaDB (vecteurs)      │
-│           ──► BM25 index (keywords)    │
-│           ──► NetworkX (graphe)        │
+│            Indexation Qdrant           │
+│ Embedder BAAI/bge-m3 ──► TextChunks    │
+│ Embedder BAAI/bge-m3 ──► TablesChunks  │
 └────────────────────┬───────────────────┘
                      │
                      ▼
 ┌────────────────────────────────────────┐
-│           Agent LangGraph              │
-│  Router ──► Semantic search            │
-│         ──► Keyword search (BM25)      │
-│         ──► Graph search               │
-│  Reranker ──► Critique ──► Génération  │
+│                Retrieval               │
+│             Semantic search            │
+│             Keyword search (BM25)      │
+│             Reranker                   │
 └────────────────────────────────────────┘
-                     │
-                     ▼
+                    │
+                    ▼
+┌────────────────────────────────────────┐
+│             Génération LLM             │   
+└────────────────────────────────────────┘ 
+                    │
+                    ▼                 
               API FastAPI
 ```
 
