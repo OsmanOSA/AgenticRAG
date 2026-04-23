@@ -47,7 +47,7 @@ class ImageChunk(BaseChunk):
         d["image_id"] = self.image_id
         return d
 
-class DoclingChunks(TypedDict):
+class DocChunks(TypedDict):
     text:   List[TextChunk]
     tables: List[TableChunk]
     images: List[ImageChunk]
