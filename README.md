@@ -1,6 +1,6 @@
 # RAG Agentique
 
-Système de **Retrieval-Augmented Generation agentique** construit avec LangGraph et LangChain. NovaRAG extrait, indexe et interroge des documents PDF en combinant recherche sémantique, recherche par mots-clés (BM25) et recherche par graphe, avec un agent qui critique et affine ses réponses.
+Système de **Retrieval-Augmented Generation agentique** construit avec LangGraph et LangChain. AgenticRAG extrait, indexe et interroge des documents PDF en combinant recherche sémantique, recherche par mots-clés (BM25) et recherche par graphe, avec un agent qui critique et affine ses réponses.
 
 ---
 
