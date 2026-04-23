@@ -18,7 +18,7 @@ from langchain_core.documents import Document  # type: ignore
 from src.core.exception import AgenticRagException
 from src.core.logging import logging
 from src.core.config import LIGATURES
-from src.entity.artifact_entity import TextChunk, TableChunk, ImageChunk, DoclingChunks
+from src.entity.artifact_entity import TextChunk, TableChunk, ImageChunk, DocChunks
 
 warnings.filterwarnings("ignore")
 fitz.TOOLS.mupdf_display_errors(False)
@@ -33,7 +33,7 @@ _std_logging.getLogger("tesseract").setLevel(_std_logging.ERROR)
 def pdf_to_typed_chunks(
     file_path: str,
     vlm_model: Optional[str] = None,
-) -> DoclingChunks:
+) -> DocChunks:
     """Extrait texte, tableaux et images d'un PDF.
 
     - Texte    : ``pymupdf4llm.to_markdown(page_chunks=True)``
