@@ -53,7 +53,7 @@ Système de **Retrieval-Augmented Generation agentique** construit avec LangGrap
 ## Structure du projet
 
 ```
-NovaRAG/
+AgenticRAG/
 ├── src/
 │   ├── core/
 │   │   ├── config.py          # Constantes & lazy loading modèles
@@ -61,15 +61,13 @@ NovaRAG/
 │   │   ├── exception.py       # AgenticRagException
 │   │   └── logging.py         # Configuration des logs
 │   ├── entity/
-│   │   └── artifact_entity.py # TextChunk, TableChunk, ImageChunk, DoclingChunks
+│   │   └── artifact_entity.py # TextChunk, TableChunk, ImageChunk, DocChunks
 │   ├── data/
-│   │   ├── loaders.py         # Chargement multi-format
-│   │   ├── cleaner.py         # Nettoyage des données
 │   │   ├── chunker.py         # Stratégies de découpe
 │   │   └── data_ingestion.py  # Pipeline d'ingestion
 │   ├── indexing/
 │   │   ├── embedder.py        # Génération des embeddings
-│   │   └── vector_store.py    # Interface ChromaDB
+│   │   └── vector_store.py    # Interface Qdrant
 │   ├── retrieval/
 │   │   ├── semantic_search.py # Recherche dense (embeddings)
 │   │   ├── keyword_search.py  # Recherche BM25
@@ -88,6 +86,7 @@ NovaRAG/
 │       ├── main.py            # Application FastAPI
 │       ├── schemas.py         # Schémas Pydantic
 │       └── dependencies.py    # Injection de dépendances
+├── frontend/                  # Interface User
 ├── monitoring/
 │   ├── eval_ragas.py          # Évaluation RAGAS
 │   ├── benchmark_piaf.py      # Benchmark PIAF
@@ -106,7 +105,7 @@ NovaRAG/
 ### Prérequis
 
 - Python 3.12+
-- Java 21+ (requis par `opendataloader-pdf`)
+- Qdrant
 - [Ollama](https://ollama.com/download) (pour les descriptions d'images VLM)
 
 ### Environnement virtuel
@@ -127,33 +126,28 @@ ollama serve   # laisser tourner en arrière-plan
 
 ---
 
+### Qdrant local
+
+```bash
+docker run -p 6333:6333 qdrant/qdrant   
+```
+---
+
 ## Utilisation
 
 ### Extraction et chunking
 
 ```python
-from src.core.utils import pdf_extractor_pymupdf4llm, semantic_chunk, save_result
+from src.core.utils import pdf_to_typed_chunks, semantic_chunk, save_markdown
 
 # Extraction page par page
-docs = pdf_extractor_pymupdf4llm("mon_document.pdf")
+docs = pdf_to_typed_chunks("mon_document.pdf")
 
 # Sauvegarde du markdown extrait
 save_result(docs, name_method="extraction", source_name="mon_document")
 
 # Chunking sémantique
 chunks = semantic_chunk(docs)
-```
-
-### Extraction Docling (text + tables + images séparés)
-
-```python
-from src.core.utils import pdf_extractor_docling
-
-result = pdf_extractor_docling("mon_document.pdf", vlm_model="llava")
-
-text_chunks  = result["text"]    # List[TextChunk]
-table_chunks = result["tables"]  # List[TableChunk]
-image_chunks = result["images"]  # List[ImageChunk] avec description VLM
 ```
 
 ### API
@@ -194,10 +188,10 @@ pytest test/ --cov=src
 | Composant | Technologie |
 |---|---|
 | Orchestration agent | LangGraph |
-| LLM | Claude (Anthropic) |
-| Extraction PDF | pymupdf4llm, Docling |
-| Embeddings | sentence-transformers/all-MiniLM-L6-v2 |
-| Vector store | ChromaDB |
+| LLM | OpenRouter |
+| Extraction PDF | pymupdf4llm |
+| Embeddings | BAAI/bge-m3 |
+| Vector store | Qdrant |
 | Recherche keyword | BM25 (rank-bm25) |
 | Recherche graphe | NetworkX |
 | VLM local | Ollama (llava) |
@@ -207,5 +201,4 @@ pytest test/ --cov=src
 ---
 
 ## Auteur
-
 Osman SAID ALI
