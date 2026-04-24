@@ -22,7 +22,7 @@ interface Message {
 
 // ── Gemini-style Input ────────────────────────────────────────────────────────
 
-function GeminiInput({ onSend, isLoading, placeholder = "Demander à NovaRAG" }: {
+function GeminiInput({ onSend, isLoading, placeholder = "Demander à AgenticRAG" }: {
   onSend: (text: string) => void;
   isLoading?: boolean;
   placeholder?: string;
@@ -228,7 +228,7 @@ function Sidebar({ status, onIngest, ingesting, onNewChat, open, onClose }: {
       )}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-16 shrink-0">
-          <span className="text-[22px] font-medium text-[#1f1f1f] tracking-tight">NovaRAG</span>
+          <span className="text-[22px] font-medium text-[#1f1f1f] tracking-tight">AgenticRAG</span>
           <button onClick={onClose} className="lg:hidden text-[#5f6368] hover:text-[#1f1f1f] transition-colors p-2 rounded-full hover:bg-[#e8eaed]">
             <X className="size-5" />
           </button>
@@ -349,7 +349,7 @@ export default function Home() {
           <button onClick={() => setSidebarOpen(true)} className="text-[#5f6368] hover:text-[#1f1f1f] p-2 rounded-full hover:bg-[#f1f3f4] transition-colors">
             <Menu className="size-5" />
           </button>
-          <span className="font-medium text-[#1f1f1f]">NovaRAG</span>
+          <span className="font-medium text-[#1f1f1f]">AgenticRAG</span>
           {status?.ready && (
             <span className="ml-auto text-xs px-2.5 py-1 rounded-full bg-[#e6f4ea] text-[#137333]">
               {status.point_count} pts
@@ -405,7 +405,7 @@ export default function Home() {
               <div className="max-w-3xl mx-auto">
                 <GeminiInput onSend={handleSend} isLoading={isLoading} />
                 <p className="text-center text-xs text-[#9aa0a6] mt-2">
-                  NovaRAG · {status?.point_count ?? "…"} chunks · Gemma 4
+                  AgenticRAG · {status?.point_count ?? "…"} chunks · Gemma 4
                 </p>
               </div>
             </div>

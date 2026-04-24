@@ -15,8 +15,8 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NovaRAG",
-  description: "Agentic RAG — retrieval hybride + Gemma 4",
+  title: "AgenticRAG",
+  description: "Agentic RAG — retrieval hybride + OpenRouter Model",
 };
 
 export default function RootLayout({
