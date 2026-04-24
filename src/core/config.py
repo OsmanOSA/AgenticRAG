@@ -40,7 +40,7 @@ LIGATURES: dict = {
 # Qdrant — Vector store
 # ─────────────────────────────────────────
 QDRANT_URL: str        = "http://localhost:6333"
-QDRANT_COLLECTION: str = "novarag"
+QDRANT_COLLECTION: str = "agenticrag"
 QDRANT_VECTOR_SIZE: int = 1024   # bge-m3 output dim
 
 # ─────────────────────────────────────────
