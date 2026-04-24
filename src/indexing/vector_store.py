@@ -30,7 +30,8 @@ class VectorStore:
     delete_collection()   Supprime la collection.
     """
 
-    def __init__(self, url: str = QDRANT_URL, collection: str = QDRANT_COLLECTION):
+    def __init__(self, url: str = QDRANT_URL, 
+                 collection: str = QDRANT_COLLECTION):
         
         try:
 

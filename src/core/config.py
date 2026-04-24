@@ -62,7 +62,8 @@ def get_embed_model():
 DEFAULT_RERANK_MODEL = "ms-marco-MiniLM-L-12-v2"
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-MODEL_LLM        = "openai/gpt-oss-120b:free"
+MODEL_LLM = "nvidia/nemotron-3-super-120b-a12b:free"
+
 
 
 """

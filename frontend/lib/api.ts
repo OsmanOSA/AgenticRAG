@@ -45,7 +45,10 @@ export async function queryRAG(
 
 export async function triggerIngest(): Promise<void> {
   const res = await fetch(`${API_BASE}/api/ingest`, { method: "POST" });
-  if (!res.ok) throw new Error("Ingestion failed");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail ?? "Ingestion failed");
+  }
 }
 
 export interface DocumentStats {

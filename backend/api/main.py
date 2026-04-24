@@ -135,6 +135,7 @@ def ingest():
         )
 
     except Exception as e:
+        logging.exception(f"Ingest error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

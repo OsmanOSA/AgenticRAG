@@ -49,7 +49,7 @@ def pdf_to_typed_chunks(
 
     Returns
     -------
-    DoclingChunks
+    DocChunks
         ``{"text": List[TextChunk], "tables": List[TableChunk], "images": List[ImageChunk]}``
     """
     try:

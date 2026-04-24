@@ -4,7 +4,7 @@ import time
 
 from typing import List
 
-from openai import OpenAI, RateLimitError
+from openai import OpenAI, RateLimitError, InternalServerError, APIStatusError
 from dotenv import load_dotenv
 
 from src.core.logging import logging
@@ -17,30 +17,17 @@ load_dotenv()
 _MAX_RETRIES = 4
 _RETRY_BASE_DELAY = 5  # secondes, doublé à chaque tentative
 
-class LLMClient:
-    """Client de génération via OpenRouter (MiniMax / tout modèle OpenRouter free).
 
-    Utilise l'API OpenAI-compatible d'OpenRouter.
-    """
+class LLMClient:
+    """Client de génération via OpenRouter (API OpenAI-compatible)."""
 
     def __init__(
         self,
         model: str = MODEL_LLM,
-        temperature: float = 0.2,
-        max_tokens: int = 1024):
-        """
-        Parameters
-        ----------
-        model : str
-            Identifiant du modèle OpenRouter (ex: ``"google/gemma-3-27b-it:free"``).
-        temperature : float
-            Température de génération (défaut : 0.2 pour la précision factuelle).
-        max_tokens : int
-            Nombre maximum de tokens générés.
-        """
-        
+        temperature: float = 0.1,
+        max_tokens: int = 1024,
+    ):
         try:
-
             api_key = os.getenv("OPENROUTER_API_KEY")
             if not api_key:
                 raise ValueError(
@@ -50,6 +37,7 @@ class LLMClient:
             self._client = OpenAI(
                 api_key=api_key,
                 base_url=OPENROUTER_BASE_URL,
+                max_retries=0,
             )
             self.model       = model
             self.temperature = temperature
@@ -61,12 +49,11 @@ class LLMClient:
             raise AgenticRagException(e, sys)
 
     def _call(self, messages: list) -> str:
-        """Appel API avec retry exponentiel sur RateLimitError (429)."""
-        
+        """Appel API avec retry exponentiel sur 429 et 503."""
+
         delay = _RETRY_BASE_DELAY
 
         for attempt in range(1, _MAX_RETRIES + 1):
-
             try:
                 response = self._client.chat.completions.create(
                     model=self.model,
@@ -75,8 +62,8 @@ class LLMClient:
                     messages=messages,
                 )
                 return response.choices[0].message.content or ""
-            
-            except RateLimitError:
+
+            except RateLimitError as e:
                 if attempt == _MAX_RETRIES:
                     raise
                 logging.warning(
@@ -86,22 +73,21 @@ class LLMClient:
                 time.sleep(delay)
                 delay *= 2
 
-    def generate(self, query: str, context_chunks: List[dict]) -> str:
-        """Génère une réponse RAG à partir de la question et du contexte.
+            except (InternalServerError, APIStatusError) as e:
+                status = getattr(e, "status_code", "?")
+                if attempt == _MAX_RETRIES or status not in (500, 502, 503, 504):
+                    raise
+                logging.warning(
+                    f"Erreur provider {status} — tentative {attempt}/{_MAX_RETRIES}, "
+                    f"attente {delay}s…"
+                )
+                time.sleep(delay)
+                delay *= 2
 
-        Parameters
-        ----------
-        query : str
-            Question de l'utilisateur.
-        context_chunks : List[dict]
-            Résultats fusionnés du Reranker (``content``, ``source``, ``page_number``…).
+    def generate(self, query: str,
+                  context_chunks: List[dict]) -> str:
+        """Génère une réponse RAG à partir de la question et du contexte."""
 
-        Returns
-        -------
-        str
-            Réponse générée par le modèle.
-        """
-        
         try:
 
             user_prompt = build_rag_prompt(query, context_chunks)
@@ -114,30 +100,15 @@ class LLMClient:
                 f"LLMClient : réponse générée ({len(answer)} chars) "
                 f"— modèle {self.model}"
             )
-
             return answer.strip()
 
         except Exception as e:
             raise AgenticRagException(e, sys)
 
     def generate_raw(self, system: str, user: str) -> str:
-        """Appel direct sans template RAG — utile pour le router / critique LangGraph.
+        """Appel direct sans template RAG — utile pour le router / critique LangGraph."""
 
-        Parameters
-        ----------
-        system : str
-            Prompt système.
-        user : str
-            Prompt utilisateur.
-
-        Returns
-        -------
-        str
-            Réponse brute du modèle.
-        """
-        
         try:
-
             messages = [
                 {"role": "system", "content": system},
                 {"role": "user",   "content": user},
