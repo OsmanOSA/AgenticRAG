@@ -36,7 +36,9 @@ from backend.api.dependencies import (get_semantic_search,
 # ── Pipeline RAG tracé ────────────────────────────────────────────────────────
 
 @observe()
-def run_retrieval(query: str, k: int = 20, top_k: int = 5) -> list:
+def run_retrieval(query: str,
+                  k: int = 20, 
+                  top_k: int = 5) -> list:
     """Hybrid retrieval (sémantique + BM25 + RRF) avec span Langfuse."""
     
     try:
@@ -57,8 +59,7 @@ def run_retrieval(query: str, k: int = 20, top_k: int = 5) -> list:
                 "type":         c.get("type", "Text"),
                 "rerank_score": round(c["rerank_score"], 5),
             }
-            for c in context
-        ]
+            for c in context]
 
         get_client().update_current_span(
             input={"query": query, "k": k, "top_k": top_k},
@@ -98,10 +99,14 @@ def generate_answer(query: str, context: List[dict]) -> str:
 
 
 @observe(name="rag-query")
-def run_rag_pipeline(query: str, k: int = 20, top_k: int = 5, session_id: str | None = None) -> dict:
-    """
-    Trace racine du pipeline RAG complet.
+def run_rag_pipeline(query: str, 
+                     k: int = 20, 
+                     top_k: int = 5, 
+                     session_id: str | None = None
+                     ) -> dict:
+    """Trace racine du pipeline RAG complet.
     Retourne {"answer": str, "context": list}.
+
     """
    
     try:
@@ -112,12 +117,15 @@ def run_rag_pipeline(query: str, k: int = 20, top_k: int = 5, session_id: str | 
         context = run_retrieval(query, k=k, top_k=top_k)
         answer  = generate_answer(query, context)
         trace_id = get_client().get_current_trace_id()
+
         result = RAGJudge().evaluate(question=query,
                                     context_chunks=context,
                                     answer=answer,
                                     trace_id=trace_id)
         
-        return {"answer": answer, "context": context}
+        return {"answer": answer, 
+                "context": context, 
+                "trace_id": trace_id}
 
     except AgenticRagException:
         get_client().update_current_span(metadata={"error": True})

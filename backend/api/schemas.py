@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -56,3 +57,20 @@ class StatsResponse(BaseModel):
     total_chars: int
     estimated_tokens: int
     documents: List[DocumentStats]
+
+
+class MessageOut(BaseModel):
+    id: str
+    session_id: str
+    role: str
+    content: str
+    sources: Optional[list] = None
+    langfuse_trace_id: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ConversationHistory(BaseModel):
+    session_id: str
+    messages: List[MessageOut]

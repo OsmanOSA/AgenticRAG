@@ -72,6 +72,7 @@ streamlit == 1.56.0
 # ─────────────────────────────────────────
 # API — FastAPI + serveur
 # ─────────────────────────────────────────
+psycopg2-binary >= 2.9.0        # driver PostgreSQL pour SQLAlchemy
 fastapi == 0.135.3
 uvicorn[standard] == 0.44.0
 httpx == 0.28.1               # client HTTP async (tests API)

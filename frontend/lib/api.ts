@@ -29,12 +29,13 @@ export async function fetchStatus(): Promise<StatusResponse> {
 export async function queryRAG(
   query: string,
   k = 10,
-  top_k = 5
+  top_k = 5,
+  session_id?: string,
 ): Promise<QueryResponse> {
   const res = await fetch(`${API_BASE}/api/query`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, k, top_k }),
+    body: JSON.stringify({ query, k, top_k, session_id }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

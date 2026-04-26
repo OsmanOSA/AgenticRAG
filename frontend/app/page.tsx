@@ -5,11 +5,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Link from "next/link";
 import {
-  Plus, Database, RefreshCw,
+  Plus, Database,
   ChevronDown, FileText, Table2, Menu, X,
   Paperclip, Mic, ArrowUp, Settings2, SlidersHorizontal,
+  MessageSquare,
 } from "lucide-react";
-import { fetchStatus, queryRAG, triggerIngest, type StatusResponse, type SourceItem } from "@/lib/api";
+import { fetchStatus, queryRAG, type StatusResponse, type SourceItem } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -18,6 +19,33 @@ interface Message {
   content: string;
   sources?: SourceItem[];
   loading?: boolean;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  messages: Message[];
+  updatedAt: number;
+}
+
+const STORAGE_KEY = "agenticrag_convs";
+
+function loadConversations(): Conversation[] {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]"); }
+  catch { return []; }
+}
+
+function saveConversations(convs: Conversation[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(convs)); }
+  catch {}
+}
+
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "À l'instant";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} h`;
+  return `${Math.floor(diff / 86_400_000)} j`;
 }
 
 // ── Gemini-style Input ────────────────────────────────────────────────────────
@@ -67,10 +95,7 @@ function GeminiInput({ onSend, isLoading, placeholder = "Demander à AgenticRAG"
         </button>
         <div className="flex-1" />
         {isLoading ? (
-          <button
-            disabled
-            className="size-9 rounded-full bg-[#0b57d0] flex items-center justify-center"
-          >
+          <button disabled className="size-9 rounded-full bg-[#0b57d0] flex items-center justify-center">
             <svg className="size-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
               <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
@@ -137,11 +162,7 @@ function ChatMessage({ role, content, sources, loading }: Message) {
       {loading ? (
         <div className="flex gap-1.5 items-center py-2 px-1">
           {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="size-2 rounded-full bg-[#bdc1c6] animate-bounce"
-              style={{ animationDelay: `${i * 160}ms` }}
-            />
+            <span key={i} className="size-2 rounded-full bg-[#bdc1c6] animate-bounce" style={{ animationDelay: `${i * 160}ms` }} />
           ))}
         </div>
       ) : isUser ? (
@@ -158,12 +179,8 @@ function ChatMessage({ role, content, sources, loading }: Message) {
                   <table className="text-sm border-collapse w-full">{children}</table>
                 </div>
               ),
-              th: ({ children }) => (
-                <th className="px-4 py-3 bg-[#f8f9fa] font-semibold text-left text-[#3c4043] border-b border-[#e0e0e0] text-sm">{children}</th>
-              ),
-              td: ({ children }) => (
-                <td className="px-4 py-3 text-[#5f6368] border-b border-[#f1f3f4] text-sm last:border-0">{children}</td>
-              ),
+              th: ({ children }) => <th className="px-4 py-3 bg-[#f8f9fa] font-semibold text-left text-[#3c4043] border-b border-[#e0e0e0] text-sm">{children}</th>,
+              td: ({ children }) => <td className="px-4 py-3 text-[#5f6368] border-b border-[#f1f3f4] text-sm last:border-0">{children}</td>,
               code: ({ children, className: cls }) => {
                 const isBlock = cls?.includes("language-");
                 return isBlock ? (
@@ -211,11 +228,13 @@ function ChatMessage({ role, content, sources, loading }: Message) {
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
-function Sidebar({ status, onIngest, ingesting, onNewChat, open, onClose }: {
-  status: StatusResponse | null;
-  onIngest: () => void;
-  ingesting: boolean;
+function Sidebar({
+  conversations, currentId, onNewChat, onSelect, open, onClose,
+}: {
+  conversations: Conversation[];
+  currentId: string | null;
   onNewChat: () => void;
+  onSelect: (conv: Conversation) => void;
   open: boolean;
   onClose: () => void;
 }) {
@@ -246,7 +265,7 @@ function Sidebar({ status, onIngest, ingesting, onNewChat, open, onClose }: {
         </div>
 
         {/* Dashboard link */}
-        <div className="px-4 pb-4 shrink-0">
+        <div className="px-4 pb-3 shrink-0">
           <Link
             href="/settings"
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#3c4043] hover:bg-[#e8eaed] transition-all"
@@ -256,7 +275,36 @@ function Sidebar({ status, onIngest, ingesting, onNewChat, open, onClose }: {
           </Link>
         </div>
 
-        <div className="flex-1" />
+        {/* Conversations history */}
+        {conversations.length > 0 && (
+          <div className="flex-1 overflow-y-auto px-2 pb-4">
+            <p className="px-2 pb-1 text-[11px] font-medium text-[#9aa0a6] uppercase tracking-wide">
+              Récent
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {conversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => { onSelect(conv); onClose(); }}
+                  className={cn(
+                    "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors group",
+                    currentId === conv.id
+                      ? "bg-[#e8f0fe] text-[#0b57d0]"
+                      : "text-[#3c4043] hover:bg-[#e8eaed]"
+                  )}
+                >
+                  <MessageSquare className="size-3.5 shrink-0 mt-0.5 text-[#9aa0a6]" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] truncate leading-snug">{conv.title}</p>
+                    <p className="text-[11px] text-[#9aa0a6] mt-0.5">{relativeTime(conv.updatedAt)}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {conversations.length === 0 && <div className="flex-1" />}
       </aside>
     </>
   );
@@ -275,14 +323,30 @@ const SUGGESTIONS = [
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusResponse | null>(null);
-  const [ingesting, setIngesting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pendingRef = useRef<string | null>(null);
   const hasMessages = messages.length > 0;
 
   useEffect(() => {
+    const convs = loadConversations();
+    setConversations(convs);
+
+    // Auto-load conversation from URL param (?s=<session_id>)
+    const params = new URLSearchParams(window.location.search);
+    const sessionParam = params.get("s");
+    if (sessionParam) {
+      const conv = convs.find((c) => c.id === sessionParam);
+      if (conv) {
+        setCurrentSessionId(conv.id);
+        setMessages(conv.messages);
+      }
+      window.history.replaceState({}, "", "/");
+    }
+
     fetchStatus().then(setStatus).catch(() => setStatus(null));
   }, []);
 
@@ -294,20 +358,42 @@ export default function Home() {
     const q = text.trim();
     if (!q) return;
 
+    // Create a new session if none active
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      sessionId = crypto.randomUUID();
+      setCurrentSessionId(sessionId);
+      const newConv: Conversation = { id: sessionId, title: q.slice(0, 52), messages: [], updatedAt: Date.now() };
+      setConversations((prev) => {
+        const updated = [newConv, ...prev];
+        saveConversations(updated);
+        return updated;
+      });
+    }
+
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: q };
     const loadingMsg: Message = { id: crypto.randomUUID(), role: "assistant", content: "", loading: true };
-    setMessages((prev) => [...prev, userMsg, loadingMsg]);
+    const optimistic = [...messages, userMsg, loadingMsg];
+    setMessages(optimistic);
     pendingRef.current = loadingMsg.id;
 
     try {
-      const res = await queryRAG(q);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === pendingRef.current
-            ? { ...m, content: res.answer, sources: res.sources, loading: false }
-            : m
-        )
+      const res = await queryRAG(q, 10, 5, sessionId);
+      const final = optimistic.map((m) =>
+        m.id === pendingRef.current
+          ? { ...m, content: res.answer, sources: res.sources, loading: false }
+          : m
       );
+      setMessages(final);
+      // Persist finalized messages (no loading state)
+      const saved = final.filter((m) => !m.loading);
+      setConversations((prev) => {
+        const updated = prev.map((c) =>
+          c.id === sessionId ? { ...c, messages: saved, updatedAt: Date.now() } : c
+        );
+        saveConversations(updated);
+        return updated;
+      });
     } catch (err) {
       setMessages((prev) =>
         prev.map((m) =>
@@ -319,14 +405,15 @@ export default function Home() {
     }
   }
 
-  async function handleIngest() {
-    setIngesting(true);
-    try {
-      await triggerIngest();
-      setStatus(await fetchStatus());
-    } finally {
-      setIngesting(false);
-    }
+  function handleNewChat() {
+    setCurrentSessionId(null);
+    setMessages([]);
+    setSidebarOpen(false);
+  }
+
+  function handleSelectConv(conv: Conversation) {
+    setCurrentSessionId(conv.id);
+    setMessages(conv.messages);
   }
 
   const isLoading = messages.some((m) => m.loading);
@@ -334,10 +421,10 @@ export default function Home() {
   return (
     <div className="flex h-full bg-white">
       <Sidebar
-        status={status}
-        onIngest={handleIngest}
-        ingesting={ingesting}
-        onNewChat={() => { setMessages([]); setSidebarOpen(false); }}
+        conversations={conversations}
+        currentId={currentSessionId}
+        onNewChat={handleNewChat}
+        onSelect={handleSelectConv}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -385,7 +472,7 @@ export default function Home() {
             </div>
 
             <p className="text-xs text-[#9aa0a6]">
-              {status?.point_count ?? "…"} chunks indexés · Retrieval hybride + Gemma 4
+              AgenticRAG peut se tromper et halluciner
             </p>
           </div>
         )}
@@ -404,7 +491,7 @@ export default function Home() {
               <div className="max-w-3xl mx-auto">
                 <GeminiInput onSend={handleSend} isLoading={isLoading} />
                 <p className="text-center text-xs text-[#9aa0a6] mt-2">
-                  AgenticRAG · {status?.point_count ?? "…"} chunks · Gemma 4
+                  AgenticRAG peut se tromper et halluciner
                 </p>
               </div>
             </div>

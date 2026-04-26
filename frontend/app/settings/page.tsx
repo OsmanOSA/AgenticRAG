@@ -5,9 +5,26 @@ import Link from "next/link";
 import {
   RefreshCw, Table2, Image,
   Hash, Coins, FolderOpen, Plus, SlidersHorizontal, Menu, X,
+  MessageSquare,
 } from "lucide-react";
 import { fetchStats, triggerIngest, type StatsResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
+
+interface Conversation {
+  id: string;
+  title: string;
+  updatedAt: number;
+}
+
+const STORAGE_KEY = "agenticrag_convs";
+
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "À l'instant";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} h`;
+  return `${Math.floor(diff / 86_400_000)} j`;
+}
 
 function fmt(n: number) {
   return n.toLocaleString("fr-FR");
@@ -48,6 +65,13 @@ export default function SettingsPage() {
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+
+  useEffect(() => {
+    try {
+      setConversations(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]"));
+    } catch {}
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -105,7 +129,7 @@ export default function SettingsPage() {
             </Link>
           </div>
 
-          <div className="px-4 pb-4 shrink-0">
+          <div className="px-4 pb-3 shrink-0">
             <Link
               href="/settings"
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#0b57d0] bg-[#e8f0fe] font-medium transition-all"
@@ -115,7 +139,30 @@ export default function SettingsPage() {
             </Link>
           </div>
 
-          <div className="flex-1" />
+          {conversations.length > 0 && (
+            <div className="flex-1 overflow-y-auto px-2 pb-4">
+              <p className="px-2 pb-1 text-[11px] font-medium text-[#9aa0a6] uppercase tracking-wide">
+                Récent
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {conversations.map((conv) => (
+                  <Link
+                    key={conv.id}
+                    href={`/?s=${conv.id}`}
+                    className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left text-[#3c4043] hover:bg-[#e8eaed] transition-colors"
+                  >
+                    <MessageSquare className="size-3.5 shrink-0 mt-0.5 text-[#9aa0a6]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] truncate leading-snug">{conv.title}</p>
+                      <p className="text-[11px] text-[#9aa0a6] mt-0.5">{relativeTime(conv.updatedAt)}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {conversations.length === 0 && <div className="flex-1" />}
         </aside>
       </>
 

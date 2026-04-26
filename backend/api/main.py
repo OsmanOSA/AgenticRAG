@@ -1,18 +1,21 @@
 import gc
 import sys
+import uuid
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-
 from backend.api.schemas import (
     QueryRequest, QueryResponse, SourceItem,
     StatusResponse, IngestResponse, StatsResponse, DocumentStats,
+    MessageOut, ConversationHistory,
 )
 from backend.api.dependencies import (
     get_embedder, get_store, get_semantic_search,
     get_keyword_search, get_reranker,
 )
+from backend.db.database import init_db, SessionLocal
+from backend.db.models import Message
 
 from src.core.logging import logging
 from src.core.exception import AgenticRagException
@@ -21,12 +24,33 @@ from src.data.chunker import Chunker
 from src.core.utils import typed_chunks_to_documents
 from src.indexing.embedder import Embedder
 from src.indexing.vector_store import VectorStore
-from backend.api.dependencies import (
-            get_embedder, get_store, get_semantic_search,
-            get_keyword_search, get_reranker)
 from monitoring.langfuse_eval import run_rag_pipeline
 from collections import defaultdict
 
+
+def _save_messages(session_id: str, query: str, answer: str,
+                   sources: list, trace_id: str | None) -> None:
+    """Persiste la paire question/réponse en base. Non bloquant si DB absente."""
+    
+    if SessionLocal is None:
+        return
+    
+    try:
+
+        with SessionLocal() as db:
+            db.add(Message(id=str(uuid.uuid4()), session_id=session_id,
+                           role="user", content=query))
+            db.add(Message(id=str(uuid.uuid4()), session_id=session_id,
+                           role="assistant", content=answer,
+                           sources=[s.model_dump() for s in sources],
+                           langfuse_trace_id=trace_id))
+            db.commit()
+    
+    except Exception as exc:
+        logging.warning(f"Sauvegarde historique échouée (non bloquant) : {exc}")
+
+
+_db_ready = init_db()
 
 app = FastAPI(
     title="AgenticRAG API",
@@ -61,8 +85,8 @@ def query(req: QueryRequest):
     """Répond à une question via le pipeline RAG complet (tracé dans Langfuse)."""
     
     try:
-
-        result  = run_rag_pipeline(req.query, k=req.k, top_k=req.top_k, session_id=req.session_id)
+        session_id = req.session_id or str(uuid.uuid4())
+        result  = run_rag_pipeline(req.query, k=req.k, top_k=req.top_k, session_id=session_id)
         context = result["context"]
 
         sources = [
@@ -75,6 +99,9 @@ def query(req: QueryRequest):
             )
             for r in context
         ]
+
+        _save_messages(session_id, req.query, result["answer"],
+                       sources, result.get("trace_id"))
 
         logging.info(f"Query OK : '{req.query[:60]}'")
         return QueryResponse(answer=result["answer"], sources=sources, query=req.query)
@@ -123,13 +150,13 @@ def ingest():
 
         total = store.count()
         logging.info(f"Ingestion OK : {total} points indexés ({len(chunks)} texte, {len(tables)} tableaux, {len(images)} images)")
+        
         return IngestResponse(
             status="ok",
             text_chunks=len(chunks),
             table_chunks=len(tables),
             image_chunks=len(images),
-            total_indexed=total,
-        )
+            total_indexed=total)
 
     except Exception as e:
         logging.exception(f"Ingest error: {e}")
@@ -194,10 +221,28 @@ def stats():
         document_count=len(doc_stats),
         total_chars=total_chars,
         estimated_tokens=total_chars // 4,
-        documents=documents,
-    )
+        documents=documents)
+
+
+@app.get("/api/conversations/{session_id}", response_model=ConversationHistory)
+def get_conversation(session_id: str):
+    """Retourne l'historique complet d'une session."""
+    
+    if SessionLocal is None:
+        raise HTTPException(status_code=503, detail="Historique non disponible (DATABASE_URL non configuré)")
+    
+    with SessionLocal() as db:
+        rows = (
+            db.query(Message)
+            .filter(Message.session_id == session_id)
+            .order_by(Message.created_at)
+            .all())
+        
+    return ConversationHistory(
+        session_id=session_id,
+        messages=[MessageOut.model_validate(r) for r in rows])
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "db": _db_ready}
