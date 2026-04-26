@@ -51,3 +51,38 @@ class DocChunks(TypedDict):
     text:   List[TextChunk]
     tables: List[TableChunk]
     images: List[ImageChunk]
+
+
+
+
+# ── Data classes ──────────────────────────────────────────────────────────────
+
+@dataclass
+class JudgeScore:
+    score: float
+    reasoning: str
+
+
+@dataclass
+class JudgeResult:
+    faithfulness: JudgeScore
+    relevance:    JudgeScore
+    completeness: JudgeScore
+
+    @property
+    def overall(self) -> float:
+        """Score moyen pondéré (faithfulness a plus de poids)."""
+        return round(
+            self.faithfulness.score * 0.4
+            + self.relevance.score    * 0.35
+            + self.completeness.score * 0.25,
+            3,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "faithfulness":  {"score": self.faithfulness.score,  "reasoning": self.faithfulness.reasoning},
+            "relevance":     {"score": self.relevance.score,     "reasoning": self.relevance.reasoning},
+            "completeness":  {"score": self.completeness.score,  "reasoning": self.completeness.reasoning},
+            "overall":       self.overall,
+        }

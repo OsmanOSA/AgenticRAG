@@ -41,7 +41,7 @@ class KeywordSearch:
 
     def search(self, 
                query: str, 
-               k: int = 5) -> List[dict]:
+               k: int = 10) -> List[dict]:
         """Recherche les k chunks les plus pertinents par BM25.
 
         Parameters
@@ -49,7 +49,7 @@ class KeywordSearch:
         query : str
             Requête utilisateur.
         k : int, optional
-            Nombre de résultats (défaut : 5).
+            Nombre de résultats (défaut : 10).
 
         Returns
         -------

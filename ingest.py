@@ -5,12 +5,15 @@ ingest.py — Ingestion one-shot : extraction → chunking → embedding → Qdr
     python ingest.py
 """
 import gc
+from pathlib import Path
+from typing import List
 
 from src.data.data_ingestion import PdfIngestion
 from src.data.chunker import Chunker
 from src.core.utils import typed_chunks_to_documents
 from src.indexing.embedder import Embedder
 from src.indexing.vector_store import VectorStore
+from src.entity.artifact_entity import TableChunk
 
 
 def main() -> None:
@@ -26,7 +29,7 @@ def main() -> None:
     print(f"  Tableaux : {len(tables)}")
     print(f"  Images   : {len(PdfIngestion.image_chunks(all_chunks))}")
 
-    # ── 2. Chunking sémantique ───────────────────────────────────────────
+   # ── 2. Chunking sémantique ───────────────────────────────────────────
     print("\n=== 2. CHUNKING ===")
     docs   = typed_chunks_to_documents(texts)
     chunks = Chunker.chunk(documents=docs, strategy="semantic")

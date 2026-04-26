@@ -6,6 +6,7 @@ class QueryRequest(BaseModel):
     query: str
     k: int = 10
     top_k: int = 5
+    session_id: Optional[str] = None
 
 
 class SourceItem(BaseModel):

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -39,7 +40,7 @@ LIGATURES: dict = {
 # ─────────────────────────────────────────
 # Qdrant — Vector store
 # ─────────────────────────────────────────
-QDRANT_URL: str        = "http://localhost:6333"
+QDRANT_URL: str        = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_COLLECTION: str = "agenticrag"
 QDRANT_VECTOR_SIZE: int = 1024   # bge-m3 output dim
 
@@ -62,7 +63,7 @@ def get_embed_model():
 DEFAULT_RERANK_MODEL = "ms-marco-MiniLM-L-12-v2"
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-MODEL_LLM = "nvidia/nemotron-3-super-120b-a12b:free"
+MODEL_LLM = "minimax/minimax-m2.5:free"
 
 
 

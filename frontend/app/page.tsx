@@ -235,7 +235,7 @@ function Sidebar({ status, onIngest, ingesting, onNewChat, open, onClose }: {
         </div>
 
         {/* New chat */}
-        <div className="px-4 pb-4 shrink-0">
+        <div className="px-4 pb-2 shrink-0">
           <button
             onClick={onNewChat}
             className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white hover:bg-[#e8f0fe] border border-[#c7d2da] text-sm text-[#3c4043] hover:text-[#0b57d0] transition-all shadow-sm w-full"
@@ -245,19 +245,18 @@ function Sidebar({ status, onIngest, ingesting, onNewChat, open, onClose }: {
           </button>
         </div>
 
-
-        <div className="flex-1" />
-
-        {/* Settings link */}
+        {/* Dashboard link */}
         <div className="px-4 pb-4 shrink-0">
           <Link
             href="/settings"
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#3c4043] hover:bg-[#e8eaed] transition-all"
           >
             <SlidersHorizontal className="size-4 text-[#9aa0a6]" />
-            Paramètres de l'index
+            Tableaux de bord
           </Link>
         </div>
+
+        <div className="flex-1" />
       </aside>
     </>
   );

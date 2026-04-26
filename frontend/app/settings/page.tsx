@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, RefreshCw, Table2, Image,
-  Hash, Coins, FolderOpen,
+  RefreshCw, Table2, Image,
+  Hash, Coins, FolderOpen, Plus, SlidersHorizontal, Menu, X,
 } from "lucide-react";
 import { fetchStats, triggerIngest, type StatsResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -40,8 +40,6 @@ function StatCard({
   );
 }
 
-// ── Document Row ──────────────────────────────────────────────────────────────
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -49,6 +47,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -75,124 +74,173 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-full bg-white">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white border-b border-[#e0e0e0]">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+    <div className="flex h-full bg-white">
+
+      {/* Sidebar */}
+      <>
+        {sidebarOpen && (
+          <div className="fixed inset-0 bg-black/20 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        )}
+        <aside className={cn(
+          "fixed inset-y-0 left-0 z-30 flex flex-col w-72 bg-[#f0f4f9] transition-transform duration-300 lg:relative lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}>
+          <div className="flex items-center justify-between px-4 h-16 shrink-0">
+            <span className="text-[22px] font-medium text-[#1f1f1f] tracking-tight">AgenticRAG</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-[#5f6368] hover:text-[#1f1f1f] transition-colors p-2 rounded-full hover:bg-[#e8eaed]"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+
+          <div className="px-4 pb-2 shrink-0">
             <Link
               href="/"
-              className="size-9 rounded-full hover:bg-[#f1f3f4] flex items-center justify-center text-[#5f6368] transition-colors"
+              className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white hover:bg-[#e8f0fe] border border-[#c7d2da] text-sm text-[#3c4043] hover:text-[#0b57d0] transition-all shadow-sm w-full"
             >
-              <ArrowLeft className="size-5" />
+              <Plus className="size-4" />
+              Nouvelle discussion
             </Link>
-            <h1 className="text-[18px] font-medium text-[#1f1f1f]">Paramètres de l'index</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={load}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-[#5f6368] hover:bg-[#f1f3f4] transition-colors disabled:opacity-50"
+
+          <div className="px-4 pb-4 shrink-0">
+            <Link
+              href="/settings"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#0b57d0] bg-[#e8f0fe] font-medium transition-all"
             >
-              <RefreshCw className={cn("size-4", loading && "animate-spin")} />
-              Actualiser
-            </button>
-            <button
-              onClick={handleIngest}
-              disabled={ingesting || loading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0b57d0] hover:bg-[#0842a0] text-sm text-white transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={cn("size-4", ingesting && "animate-spin")} />
-              {ingesting ? "Indexation…" : "Re-indexer"}
-            </button>
+              <SlidersHorizontal className="size-4" />
+              Tableaux de bord
+            </Link>
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
+          <div className="flex-1" />
+        </aside>
+      </>
 
-        {/* Error */}
-        {error && (
-          <div className="rounded-2xl bg-[#fce8e6] border border-[#f28b82] px-5 py-4 text-sm text-[#c5221f]">
-            {error}
-          </div>
-        )}
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        {/* Loading skeleton */}
-        {loading && !stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-28 rounded-2xl bg-[#f1f3f4] animate-pulse" />
-            ))}
-          </div>
-        )}
+        {/* Mobile header */}
+        <header className="flex items-center gap-3 px-4 h-14 border-b border-[#e0e0e0] lg:hidden shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-[#5f6368] hover:text-[#1f1f1f] p-2 rounded-full hover:bg-[#f1f3f4] transition-colors"
+          >
+            <Menu className="size-5" />
+          </button>
+          <span className="font-medium text-[#1f1f1f]">Tableaux de bord</span>
+        </header>
 
-        {stats && (
-          <>
-            {/* Global stats */}
-            <section>
-              <h2 className="text-sm font-medium text-[#5f6368] uppercase tracking-wider mb-4">Vue d'ensemble</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <StatCard
-                  label="Documents"
-                  value={stats.document_count}
-                  icon={<FolderOpen className="size-5 text-[#0b57d0]" />}
-                  color="bg-[#e8f0fe]"
-                />
-                <StatCard
-                  label="Chunks totaux"
-                  value={stats.total_chunks}
-                  icon={<Hash className="size-5 text-[#7c4dff]" />}
-                  color="bg-[#f3e8ff]"
-                />
-                <StatCard
-                  label="Tokens estimés"
-                  value={stats.estimated_tokens}
-                  sub={`${fmt(stats.total_chars)} caractères`}
-                  icon={<Coins className="size-5 text-[#ea8600]" />}
-                  color="bg-[#fef3e2]"
-                />
-                <StatCard
-                  label="Tableaux"
-                  value={stats.table_chunks}
-                  icon={<Table2 className="size-5 text-[#34a853]" />}
-                  color="bg-[#e6f4ea]"
-                />
-                <StatCard
-                  label="Images"
-                  value={stats.image_chunks}
-                  icon={<Image className="size-5 text-[#f29900]" />}
-                  color="bg-[#fef3e2]"
-                />
+        <div className="flex-1 overflow-y-auto">
+          {/* Page header */}
+          <div className="sticky top-0 z-10 bg-white border-b border-[#e0e0e0]">
+            <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+              <h1 className="text-[18px] font-medium text-[#1f1f1f]">Tableaux de bord</h1>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={load}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-[#5f6368] hover:bg-[#f1f3f4] transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("size-4", loading && "animate-spin")} />
+                  Actualiser
+                </button>
+                <button
+                  onClick={handleIngest}
+                  disabled={ingesting || loading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0b57d0] hover:bg-[#0842a0] text-sm text-white transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("size-4", ingesting && "animate-spin")} />
+                  {ingesting ? "Indexation…" : "Re-indexer"}
+                </button>
               </div>
-            </section>
+            </div>
+          </div>
 
-            {/* Breakdown */}
-            <section>
-              <h2 className="text-sm font-medium text-[#5f6368] uppercase tracking-wider mb-4">Répartition des chunks</h2>
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { label: "Texte", value: stats.text_chunks, pct: stats.total_chunks ? Math.round(stats.text_chunks / stats.total_chunks * 100) : 0, color: "bg-[#0b57d0]", bg: "bg-[#e8f0fe]", text: "text-[#0b57d0]" },
-                  { label: "Tableaux", value: stats.table_chunks, pct: stats.total_chunks ? Math.round(stats.table_chunks / stats.total_chunks * 100) : 0, color: "bg-[#7c4dff]", bg: "bg-[#f3e8ff]", text: "text-[#7c4dff]" },
-                  { label: "Images", value: stats.image_chunks, pct: stats.total_chunks ? Math.round(stats.image_chunks / stats.total_chunks * 100) : 0, color: "bg-[#34a853]", bg: "bg-[#e6f4ea]", text: "text-[#34a853]" },
-                ].map((item) => (
-                  <div key={item.label} className="rounded-2xl border border-[#e0e0e0] bg-white p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm text-[#5f6368]">{item.label}</span>
-                      <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", item.bg, item.text)}>
-                        {item.pct}%
-                      </span>
-                    </div>
-                    <p className="text-2xl font-semibold text-[#1f1f1f] tabular-nums">{fmt(item.value)}</p>
-                    <div className="mt-3 h-1.5 rounded-full bg-[#f1f3f4] overflow-hidden">
-                      <div className={cn("h-full rounded-full", item.color)} style={{ width: `${item.pct}%` }} />
-                    </div>
-                  </div>
+          <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8">
+
+            {error && (
+              <div className="rounded-2xl bg-[#fce8e6] border border-[#f28b82] px-5 py-4 text-sm text-[#c5221f]">
+                {error}
+              </div>
+            )}
+
+            {loading && !stats && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="h-28 rounded-2xl bg-[#f1f3f4] animate-pulse" />
                 ))}
               </div>
-            </section>
-          </>
-        )}
+            )}
+
+            {stats && (
+              <>
+                <section>
+                  <h2 className="text-sm font-medium text-[#5f6368] uppercase tracking-wider mb-4">Vue d'ensemble</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <StatCard
+                      label="Documents"
+                      value={stats.document_count}
+                      icon={<FolderOpen className="size-5 text-[#0b57d0]" />}
+                      color="bg-[#e8f0fe]"
+                    />
+                    <StatCard
+                      label="Chunks totaux"
+                      value={stats.total_chunks}
+                      icon={<Hash className="size-5 text-[#7c4dff]" />}
+                      color="bg-[#f3e8ff]"
+                    />
+                    <StatCard
+                      label="Tokens estimés"
+                      value={stats.estimated_tokens}
+                      sub={`${fmt(stats.total_chars)} caractères`}
+                      icon={<Coins className="size-5 text-[#ea8600]" />}
+                      color="bg-[#fef3e2]"
+                    />
+                    <StatCard
+                      label="Tableaux"
+                      value={stats.table_chunks}
+                      icon={<Table2 className="size-5 text-[#34a853]" />}
+                      color="bg-[#e6f4ea]"
+                    />
+                    <StatCard
+                      label="Images"
+                      value={stats.image_chunks}
+                      icon={<Image className="size-5 text-[#f29900]" />}
+                      color="bg-[#fef3e2]"
+                    />
+                  </div>
+                </section>
+
+                <section>
+                  <h2 className="text-sm font-medium text-[#5f6368] uppercase tracking-wider mb-4">Répartition des chunks</h2>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { label: "Texte", value: stats.text_chunks, pct: stats.total_chunks ? Math.round(stats.text_chunks / stats.total_chunks * 100) : 0, color: "bg-[#0b57d0]", bg: "bg-[#e8f0fe]", text: "text-[#0b57d0]" },
+                      { label: "Tableaux", value: stats.table_chunks, pct: stats.total_chunks ? Math.round(stats.table_chunks / stats.total_chunks * 100) : 0, color: "bg-[#7c4dff]", bg: "bg-[#f3e8ff]", text: "text-[#7c4dff]" },
+                      { label: "Images", value: stats.image_chunks, pct: stats.total_chunks ? Math.round(stats.image_chunks / stats.total_chunks * 100) : 0, color: "bg-[#34a853]", bg: "bg-[#e6f4ea]", text: "text-[#34a853]" },
+                    ].map((item) => (
+                      <div key={item.label} className="rounded-2xl border border-[#e0e0e0] bg-white p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm text-[#5f6368]">{item.label}</span>
+                          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", item.bg, item.text)}>
+                            {item.pct}%
+                          </span>
+                        </div>
+                        <p className="text-2xl font-semibold text-[#1f1f1f] tabular-nums">{fmt(item.value)}</p>
+                        <div className="mt-3 h-1.5 rounded-full bg-[#f1f3f4] overflow-hidden">
+                          <div className={cn("h-full rounded-full", item.color)} style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

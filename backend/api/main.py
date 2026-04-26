@@ -4,20 +4,33 @@ import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+
 from backend.api.schemas import (
     QueryRequest, QueryResponse, SourceItem,
     StatusResponse, IngestResponse, StatsResponse, DocumentStats,
 )
 from backend.api.dependencies import (
     get_embedder, get_store, get_semantic_search,
-    get_keyword_search, get_reranker, get_llm,
+    get_keyword_search, get_reranker,
 )
+
 from src.core.logging import logging
 from src.core.exception import AgenticRagException
+from src.data.data_ingestion import PdfIngestion
+from src.data.chunker import Chunker
+from src.core.utils import typed_chunks_to_documents
+from src.indexing.embedder import Embedder
+from src.indexing.vector_store import VectorStore
+from backend.api.dependencies import (
+            get_embedder, get_store, get_semantic_search,
+            get_keyword_search, get_reranker)
+from monitoring.langfuse_eval import run_rag_pipeline
+from collections import defaultdict
+
 
 app = FastAPI(
-    title="NovaRAG API",
-    description="Agentic RAG — retrieval hybride + Gemma 4",
+    title="AgenticRAG API",
+    description="Agentic RAG — retrieval hybride + OpenRouter LLM",
     version="0.1.0",
 )
 
@@ -45,20 +58,12 @@ def status():
 
 @app.post("/api/query", response_model=QueryResponse)
 def query(req: QueryRequest):
-    """Répond à une question via le pipeline RAG complet."""
-
+    """Répond à une question via le pipeline RAG complet (tracé dans Langfuse)."""
+    
     try:
-        
-        sem_search = get_semantic_search()
-        kw_search  = get_keyword_search()
-        reranker   = get_reranker()
-        llm        = get_llm()
 
-        sem_results = sem_search.search(req.query, k=req.k)
-        kw_results  = kw_search.search(req.query, k=req.k)
-        context     = reranker.fuse(sem_results, kw_results, query=req.query, top_k=req.top_k)
-
-        answer  = llm.generate(query=req.query, context_chunks=context)
+        result  = run_rag_pipeline(req.query, k=req.k, top_k=req.top_k, session_id=req.session_id)
+        context = result["context"]
 
         sources = [
             SourceItem(
@@ -72,7 +77,7 @@ def query(req: QueryRequest):
         ]
 
         logging.info(f"Query OK : '{req.query[:60]}'")
-        return QueryResponse(answer=answer, sources=sources, query=req.query)
+        return QueryResponse(answer=result["answer"], sources=sources, query=req.query)
 
     except AgenticRagException as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -81,17 +86,9 @@ def query(req: QueryRequest):
 @app.post("/api/ingest", response_model=IngestResponse)
 def ingest():
     """Déclenche l'ingestion complète des PDFs (bloquant)."""
+    
     try:
-        from src.data.data_ingestion import PdfIngestion
-        from src.data.chunker import Chunker
-        from src.core.utils import typed_chunks_to_documents
-        from src.indexing.embedder import Embedder
-        from src.indexing.vector_store import VectorStore
-        from backend.api.dependencies import (
-            get_embedder, get_store, get_semantic_search,
-            get_keyword_search, get_reranker,
-        )
-
+        
         all_chunks = PdfIngestion.load_typed(vlm_model="")
         texts      = PdfIngestion.text_chunks(all_chunks)
         tables     = PdfIngestion.table_chunks(all_chunks)
@@ -142,7 +139,6 @@ def ingest():
 @app.get("/api/stats", response_model=StatsResponse)
 def stats():
     """Statistiques détaillées par document et par type de chunk."""
-    from collections import defaultdict
 
     store = get_store()
     all_points = store.scroll_all()

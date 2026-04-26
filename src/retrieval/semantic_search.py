@@ -24,7 +24,7 @@ class SemanticSearch:
     def search(
         self,
         query: str,
-        k: int = 5,
+        k: int = 10,
         doc_id: Optional[str] = None) -> List[dict]:
         """Recherche les chunks les plus pertinents pour une requête.
 
@@ -33,7 +33,7 @@ class SemanticSearch:
         query : str
             Question ou requête utilisateur.
         k : int, optional
-            Nombre de résultats à retourner (défaut : 5).
+            Nombre de résultats à retourner (défaut : 10).
         doc_id : str, optional
             Restreindre la recherche à un document source.
 

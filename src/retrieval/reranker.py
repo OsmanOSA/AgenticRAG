@@ -23,7 +23,7 @@ class Reranker:
         semantic_results: List[dict],
         keyword_results: List[dict],
         query: str,
-        top_k: int = 5,
+        top_k: int = 10,
     ) -> List[dict]:
         """Fusionne et re-classe par RRF.
 
