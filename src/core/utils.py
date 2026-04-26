@@ -227,9 +227,10 @@ def _augment_table_content(markdown_table: str,
     Nettoie aussi les artefacts PDF : balises <br>, caractères de remplacement Unicode.
 
     Ex. sortie :
+        
+        | Type de donnée | ...
         Tableau N : Stratégie de collecte des données
         Colonnes : Type de donnée, Granularité temporelle, Source de donnée.
-        | Type de donnée | ...
     """
     
     try:
@@ -252,11 +253,13 @@ def _augment_table_content(markdown_table: str,
         cleaned_table = "\n".join(lines)   # reconstruire avec newlines propres
         parts: List[str] = []
 
-        if title:
-            parts.append(title)
-        if cols:
-            parts.append("Colonnes : " + ", ".join(cols) + ".")
+        
         parts.append(cleaned_table)
+        if title:
+            title = re.sub(r"^\s*#{1,6}\s*", "", title).strip()
+            parts.append("")
+            parts.append(title)
+            
         return "\n".join(parts)
 
     except Exception as e:

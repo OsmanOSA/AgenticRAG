@@ -13,6 +13,7 @@ Hiérarchie des spans créés par @observe() :
 """
 import os
 import sys
+import threading
 from typing import List
 
 from dotenv import load_dotenv
@@ -98,33 +99,39 @@ def generate_answer(query: str, context: List[dict]) -> str:
         raise AgenticRagException(e, sys)
 
 
+def _run_judge(query: str, context: list, answer: str, trace_id: str) -> None:
+    RAGJudge().evaluate(question=query,
+                        context_chunks=context,
+                        answer=answer,
+                        trace_id=trace_id)
+
+
 @observe(name="rag-query")
-def run_rag_pipeline(query: str, 
-                     k: int = 20, 
-                     top_k: int = 5, 
+def run_rag_pipeline(query: str,
+                     k: int = 20,
+                     top_k: int = 5,
                      session_id: str | None = None
                      ) -> dict:
     """Trace racine du pipeline RAG complet.
     Retourne {"answer": str, "context": list}.
 
     """
-   
+
     try:
 
         if session_id:
             propagate_attributes(session_id=session_id)
 
-        context = run_retrieval(query, k=k, top_k=top_k)
-        answer  = generate_answer(query, context)
+        context  = run_retrieval(query, k=k, top_k=top_k)
+        answer   = generate_answer(query, context)
         trace_id = get_client().get_current_trace_id()
 
-        result = RAGJudge().evaluate(question=query,
-                                    context_chunks=context,
-                                    answer=answer,
-                                    trace_id=trace_id)
-        
-        return {"answer": answer, 
-                "context": context, 
+        threading.Thread(target=_run_judge,
+                         args=(query, context, answer, trace_id),
+                         daemon=True).start()
+
+        return {"answer": answer,
+                "context": context,
                 "trace_id": trace_id}
 
     except AgenticRagException:

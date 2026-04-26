@@ -7,8 +7,8 @@ import Link from "next/link";
 import {
   Plus, Database,
   ChevronDown, FileText, Table2, Menu, X,
-  Paperclip, Mic, ArrowUp, Settings2, SlidersHorizontal,
-  MessageSquare,
+  Paperclip, ArrowUp, Settings2, SlidersHorizontal,
+  MessageSquare, Trash2,
 } from "lucide-react";
 import { fetchStatus, queryRAG, type StatusResponse, type SourceItem } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -108,11 +108,7 @@ function GeminiInput({ onSend, isLoading, placeholder = "Demander à AgenticRAG"
           >
             <ArrowUp className="size-4 text-white" />
           </button>
-        ) : (
-          <button className="size-9 rounded-full bg-[#f0f4f9] hover:bg-[#e8eaed] flex items-center justify-center text-[#5f6368] transition-colors">
-            <Mic className="size-4" />
-          </button>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -229,12 +225,13 @@ function ChatMessage({ role, content, sources, loading }: Message) {
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 function Sidebar({
-  conversations, currentId, onNewChat, onSelect, open, onClose,
+  conversations, currentId, onNewChat, onSelect, onDelete, open, onClose,
 }: {
   conversations: Conversation[];
   currentId: string | null;
   onNewChat: () => void;
   onSelect: (conv: Conversation) => void;
+  onDelete: (id: string) => void;
   open: boolean;
   onClose: () => void;
 }) {
@@ -283,22 +280,34 @@ function Sidebar({
             </p>
             <div className="flex flex-col gap-0.5">
               {conversations.map((conv) => (
-                <button
+                <div
                   key={conv.id}
-                  onClick={() => { onSelect(conv); onClose(); }}
                   className={cn(
-                    "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors group",
-                    currentId === conv.id
-                      ? "bg-[#e8f0fe] text-[#0b57d0]"
-                      : "text-[#3c4043] hover:bg-[#e8eaed]"
+                    "group flex items-center gap-1 px-1 rounded-xl transition-colors",
+                    currentId === conv.id ? "bg-[#e8f0fe]" : "hover:bg-[#e8eaed]"
                   )}
                 >
-                  <MessageSquare className="size-3.5 shrink-0 mt-0.5 text-[#9aa0a6]" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] truncate leading-snug">{conv.title}</p>
-                    <p className="text-[11px] text-[#9aa0a6] mt-0.5">{relativeTime(conv.updatedAt)}</p>
-                  </div>
-                </button>
+                  <button
+                    onClick={() => { onSelect(conv); onClose(); }}
+                    className={cn(
+                      "flex items-start gap-2.5 flex-1 min-w-0 px-2 py-2.5 text-left",
+                      currentId === conv.id ? "text-[#0b57d0]" : "text-[#3c4043]"
+                    )}
+                  >
+                    <MessageSquare className="size-3.5 shrink-0 mt-0.5 text-[#9aa0a6]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] truncate leading-snug">{conv.title}</p>
+                      <p className="text-[11px] text-[#9aa0a6] mt-0.5">{relativeTime(conv.updatedAt)}</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => onDelete(conv.id)}
+                    className="opacity-0 group-hover:opacity-100 shrink-0 p-1.5 rounded-lg text-[#9aa0a6] hover:text-[#d93025] hover:bg-[#fce8e6] transition-all"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -405,6 +414,18 @@ export default function Home() {
     }
   }
 
+  function handleDeleteConv(id: string) {
+    setConversations((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      saveConversations(updated);
+      return updated;
+    });
+    if (id === currentSessionId) {
+      setCurrentSessionId(null);
+      setMessages([]);
+    }
+  }
+
   function handleNewChat() {
     setCurrentSessionId(null);
     setMessages([]);
@@ -425,6 +446,7 @@ export default function Home() {
         currentId={currentSessionId}
         onNewChat={handleNewChat}
         onSelect={handleSelectConv}
+        onDelete={handleDeleteConv}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   RefreshCw, Table2, Image,
   Hash, Coins, FolderOpen, Plus, SlidersHorizontal, Menu, X,
-  MessageSquare,
+  MessageSquare, Trash2,
 } from "lucide-react";
 import { fetchStats, triggerIngest, type StatsResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -72,6 +72,14 @@ export default function SettingsPage() {
       setConversations(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]"));
     } catch {}
   }, []);
+
+  function handleDeleteConv(id: string) {
+    setConversations((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  }
 
   async function load() {
     setLoading(true);
@@ -146,17 +154,28 @@ export default function SettingsPage() {
               </p>
               <div className="flex flex-col gap-0.5">
                 {conversations.map((conv) => (
-                  <Link
+                  <div
                     key={conv.id}
-                    href={`/?s=${conv.id}`}
-                    className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left text-[#3c4043] hover:bg-[#e8eaed] transition-colors"
+                    className="group flex items-center gap-1 px-1 rounded-xl hover:bg-[#e8eaed] transition-colors"
                   >
-                    <MessageSquare className="size-3.5 shrink-0 mt-0.5 text-[#9aa0a6]" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] truncate leading-snug">{conv.title}</p>
-                      <p className="text-[11px] text-[#9aa0a6] mt-0.5">{relativeTime(conv.updatedAt)}</p>
-                    </div>
-                  </Link>
+                    <Link
+                      href={`/?s=${conv.id}`}
+                      className="flex items-start gap-2.5 flex-1 min-w-0 px-2 py-2.5 text-[#3c4043]"
+                    >
+                      <MessageSquare className="size-3.5 shrink-0 mt-0.5 text-[#9aa0a6]" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] truncate leading-snug">{conv.title}</p>
+                        <p className="text-[11px] text-[#9aa0a6] mt-0.5">{relativeTime(conv.updatedAt)}</p>
+                      </div>
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteConv(conv.id)}
+                      className="opacity-0 group-hover:opacity-100 shrink-0 p-1.5 rounded-lg text-[#9aa0a6] hover:text-[#d93025] hover:bg-[#fce8e6] transition-all"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
