@@ -5,7 +5,6 @@ networks:
     driver: bridge
 
 volumes:
-  qdrant_storage:
   hf_cache:
   logs:
 
@@ -17,16 +16,16 @@ services:
       - "6333:6333"
       - "6334:6334"
     volumes:
-      - qdrant_storage:/qdrant/storage
+      - ./qdrant_storage:/qdrant/storage
     networks:
       - agenticrag_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:6333/readyz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   backend:
     build:

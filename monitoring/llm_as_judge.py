@@ -25,7 +25,6 @@ from dataclasses import dataclass
 
 from src.core.logging import logging
 from backend.api.dependencies import get_llm
-from monitoring.langfuse_eval import score_trace
 
 # ── Prompts ───────────────────────────────────────────────────────────────────
 
@@ -133,6 +132,7 @@ class RAGJudge:
         )
 
         if trace_id:
+            from monitoring.langfuse_eval import score_trace  # lazy — évite l'import circulaire
             score_trace(trace_id, "faithfulness",  faithfulness.score,  faithfulness.reasoning)
             score_trace(trace_id, "relevance",     relevance.score,     relevance.reasoning)
             score_trace(trace_id, "completeness",  completeness.score,  completeness.reasoning)

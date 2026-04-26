@@ -20,11 +20,10 @@ sentence-transformers == 5.4.1
 # ─────────────────────────────────────────
 langchain == 1.2.15
 langgraph == 1.1.6
-langchain-core == 1.2.28
+langchain-core == 1.2.31
 langchain-community == 0.4.1
 langchain-experimental == 0.4.1
 langchain-huggingface == 1.2.2
-langchain-pymupdf4llm == 0.5.0
 langfuse == 4.5.1
 
 

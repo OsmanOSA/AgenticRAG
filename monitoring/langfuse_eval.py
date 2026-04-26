@@ -112,10 +112,10 @@ def run_rag_pipeline(query: str, k: int = 20, top_k: int = 5, session_id: str | 
         context = run_retrieval(query, k=k, top_k=top_k)
         answer  = generate_answer(query, context)
         trace_id = get_client().get_current_trace_id()
-        result = RAGJudge.evaluate(question=query, 
-                                   context_chunks=context, 
-                                   answer=answer, 
-                                   trace_id=trace_id)
+        result = RAGJudge().evaluate(question=query,
+                                    context_chunks=context,
+                                    answer=answer,
+                                    trace_id=trace_id)
         
         return {"answer": answer, "context": context}
 
