@@ -206,9 +206,9 @@ ollama serve
 
 | Type | Contenu | Indexé dans Qdrant |
 |---|---|---|
-| `TextChunk` | Paragraphes, titres, listes | Oui (embedding dense) |
-| `TableChunk` | CSV des tableaux détectés | Oui (embedding dense) |
-| `ImageChunk` | Image base64 + description VLM | Non (description textuelle uniquement) |
+| `TextChunk`  | Paragraphes, titres, listes     | Oui (embedding dense) |
+| `TableChunk` | Tableaux détectés dans les PDFs | Oui (embedding dense) |
+| `ImageChunk` | Image base64 + description VLM  | Non (description textuelle uniquement) |
 
 ---
 
