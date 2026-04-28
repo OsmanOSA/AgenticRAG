@@ -193,9 +193,11 @@ def stats():
         if ctype == "Table":
             table_chunks += 1
             doc_stats[src]["table"] += 1
+
         elif ctype == "Image":
             image_chunks += 1
             doc_stats[src]["image"] += 1
+            
         else:
             text_chunks += 1
             doc_stats[src]["text"] += 1
