@@ -6,51 +6,7 @@ Système de **Retrieval-Augmented Generation** construit avec FastAPI et Next.js
 
 ## Architecture
 
-```
-            Documents PDF
-                   │
-                   ▼
-┌────────────────────────────────────────┐
-│        Extraction (src/core/utils)     │
-│  pymupdf4llm ──► TextChunk             │
-│                  TableChunk            │
-│                  ImageChunk + VLM desc │
-└────────────────────┬───────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────┐
-│           Chunking sémantique          │
-│  LangChain SemanticChunker (bge-m3)    │
-└────────────────────┬───────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────┐
-│           Indexation Qdrant            │
-│  BAAI/bge-m3 ──► TextChunks            │
-│  BAAI/bge-m3 ──► TableChunks           │
-└────────────────────┬───────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────┐
-│               Retrieval                │
-│  Semantic search (bge-m3 + Qdrant)     │
-│  Keyword search  (BM25)                │
-│  Reranking       (RRF + cross-encoder) │
-└────────────────────┬───────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────┐
-│           Génération LLM               │
-│      OpenRouter (minimax-m2.5)         │
-└────────────────────┬───────────────────┘
-                     │
-                     ▼
-         ┌───────────┴───────────┐
-         ▼                       ▼
-   API FastAPI              Monitoring
-   PostgreSQL               Langfuse
-   (historique)             LLM-as-Judge (async)
-```
+!["Image_Architecture"](./datasets/architecture.png)
 
 ---
 
