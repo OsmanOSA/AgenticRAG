@@ -8,6 +8,9 @@ import gc
 from pathlib import Path
 from typing import List
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from src.data.data_ingestion import PdfIngestion
 from src.data.chunker import Chunker
 from src.core.utils import typed_chunks_to_documents
@@ -20,16 +23,20 @@ def main() -> None:
 
     # ── 1. Extraction ────────────────────────────────────────────────────
     print("\n=== 1. EXTRACTION ===")
-    all_chunks = PdfIngestion.load_typed(vlm_model="")
+    all_chunks = PdfIngestion.load_typed()
 
     texts  = PdfIngestion.text_chunks(all_chunks)
     tables = PdfIngestion.table_chunks(all_chunks)
+    #images_raw = PdfIngestion.image_chunks(all_chunks)
+
+    # Ignorer les images sans description (GEMINI_API_KEY absent ou erreur VLM)
+    #images = [img for img in images_raw if img.content.strip()]
 
     print(f"  Textes   : {len(texts)}")
     print(f"  Tableaux : {len(tables)}")
-    print(f"  Images   : {len(PdfIngestion.image_chunks(all_chunks))}")
+    #print(f"  Images   : {len(images)}/{len(images_raw)} (avec description Gemini)")
 
-   # ── 2. Chunking sémantique ───────────────────────────────────────────
+    # ── 2. Chunking sémantique ───────────────────────────────────────────
     print("\n=== 2. CHUNKING ===")
     docs   = typed_chunks_to_documents(texts)
     chunks = Chunker.chunk(documents=docs, strategy="semantic")
@@ -54,7 +61,7 @@ def main() -> None:
     store.create_collection()
     store.upsert(chunks + tables)
     print(f"  {store.count()} points indexés dans '{store.collection}'")
-    print("\nIngestion terminée. Lance app.py pour interroger le RAG.")
+    print("\nIngestion terminée.")
 
 
 if __name__ == "__main__":

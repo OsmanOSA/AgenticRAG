@@ -83,6 +83,9 @@ LANGFUSE_PUBLIC_KEY=pk-lf-...
 LANGFUSE_SECRET_KEY=sk-lf-...
 LANGFUSE_HOST=https://cloud.langfuse.com
 
+# VLM — Gemini Flash (descriptions d'images)
+GEMINI_API_KEY=AIza...
+
 # HuggingFace (pour télécharger bge-m3 en Docker)
 HF_TOKEN=hf_...
 
@@ -149,13 +152,6 @@ npm install
 npm run dev     # http://localhost:3000
 ```
 
-### VLM local (descriptions d'images — optionnel)
-
-```bash
-ollama pull llava
-ollama serve
-```
-
 ---
 
 ## Types de chunks
@@ -209,7 +205,7 @@ Les scores sont remontés comme métriques sur la trace Langfuse.
 | Vector store | Qdrant |
 | Recherche keyword | BM25 (rank-bm25) |
 | Reranking | RRF + cross-encoder (ms-marco-MiniLM-L-12-v2) |
-| VLM local | Ollama (llava) |
+| VLM | Gemini Flash (google-generativeai) |
 | API | FastAPI |
 | Base de données | PostgreSQL 16 (SQLAlchemy) |
 | Frontend | Next.js (App Router) |

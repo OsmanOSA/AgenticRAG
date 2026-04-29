@@ -13,7 +13,7 @@ from src.entity.artifact_entity import DocChunks, TextChunk, TableChunk, ImageCh
 class PdfIngestion:
 
     @staticmethod
-    def load_typed(vlm_model: str = "") -> Dict[str, DocChunks]:
+    def load_typed() -> Dict[str, DocChunks]:
         """Extrait texte, tableaux et images de tous les PDFs du dossier.
 
         Returns
@@ -29,7 +29,7 @@ class PdfIngestion:
 
             results: Dict[str, DocChunks] = {}
             for pdf_path in pdf_files:
-                results[pdf_path.stem] = pdf_to_typed_chunks(str(pdf_path), vlm_model=vlm_model)
+                results[pdf_path.stem] = pdf_to_typed_chunks(str(pdf_path))
 
             logging.info(f"Ingestion terminée : {len(results)} PDF(s)")
             return results

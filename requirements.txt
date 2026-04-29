@@ -10,7 +10,8 @@ pymupdf4llm == 1.27.2.2
 PyMuPDF == 1.27.2.2
 camelot-py == 1.0.9
 pdfplumber == 0.11.9
-ollama
+google-genai >= 1.0.0
+Pillow >= 10.0.0
 rapidocr-onnxruntime == 1.4.4
 pytesseract == 0.3.13
 sentence-transformers == 5.4.1

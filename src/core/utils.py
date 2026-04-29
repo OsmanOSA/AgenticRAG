@@ -6,7 +6,6 @@ import yaml
 import json
 import fitz
 import pymupdf4llm
-import ollama
 import tiktoken
 import warnings
 
@@ -18,7 +17,7 @@ from langchain_core.documents import Document  # type: ignore
 
 from src.core.exception import AgenticRagException
 from src.core.logging import logging
-from src.core.config import LIGATURES
+from src.core.config import LIGATURES, GEMINI_API_KEY, GEMINI_VLM_MODEL
 from src.entity.artifact_entity import TextChunk, TableChunk, ImageChunk, DocChunks
 from src.entity.artifact_entity import JudgeResult, JudgeScore
 
@@ -26,10 +25,7 @@ from src.entity.artifact_entity import JudgeResult, JudgeScore
 # PDF — Extractor
 # ─────────────────────────────────────────
 
-def pdf_to_typed_chunks(
-    file_path: str,
-    vlm_model: Optional[str] = None,
-) -> DocChunks:
+def pdf_to_typed_chunks(file_path: str) -> DocChunks:
     """Extrait texte, tableaux et images d'un PDF.
 
     - Texte    : ``pymupdf4llm.to_markdown(page_chunks=True)``
@@ -60,14 +56,18 @@ def pdf_to_typed_chunks(
         seen_img_hashes: set = set()
 
         for page_num in range(len(pdf)):
-            page_md = pymupdf4llm.to_markdown(
-                pdf,
-                pages=[page_num],
-                page_chunks=False,
-                write_images=True,
-                image_path="./datasets",
-                show_progress=False,
-            )
+            try:
+                page_md = pymupdf4llm.to_markdown(
+                    pdf,
+                    pages=[page_num],
+                    page_chunks=False,
+                    write_images=True,
+                    image_path="./datasets",
+                    show_progress=False,
+                )
+            except TypeError:
+                # Bug rapidocr : OCR retourne None sur certaines pages → fallback texte brut
+                page_md = pdf[page_num].get_text("text")
 
             # Tableaux : extraits depuis le markdown avant stripping
             md_tables = _extract_markdown_tables(page_md, page_num, doc_id, file_path)
@@ -90,7 +90,9 @@ def pdf_to_typed_chunks(
             for img_info in page.get_images(full=True):
                 xref = img_info[0]
                 try:
-                    img_bytes = pdf.extract_image(xref)["image"]
+                    img_data = pdf.extract_image(xref)
+                    img_bytes = img_data["image"]
+                    img_ext   = img_data.get("ext", "png")
                 except Exception:
                     continue
 
@@ -100,7 +102,7 @@ def pdf_to_typed_chunks(
                 seen_img_hashes.add(img_hash)
 
                 b64 = base64.b64encode(img_bytes).decode()
-                description = _describe_image_ollama(b64, vlm_model) if vlm_model else ""
+                description = _describe_image_gemini(b64, img_ext)
 
                 image_chunks.append(ImageChunk(
                     id=str(uuid.uuid4()),
@@ -265,22 +267,60 @@ def _augment_table_content(markdown_table: str,
     except Exception as e:
         raise AgenticRagException(e, sys)
 
-def _describe_image_ollama(b64_image: str, model: str) -> str:
-    """Envoie une image en base64 à Ollama et retourne la description."""
-    
+_GEMINI_PROMPT = (
+    "Décris cette image de manière précise et détaillée en français pour un système RAG. "
+    "Inclus : le type de visuel (tableau, graphique, diagramme, photo, schéma…), "
+    "tout texte visible, les données clés (chiffres, titres, légendes, axes), "
+    "et les informations structurelles importantes (étapes d'un processus, relations entre éléments)."
+)
+
+_GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash"]
+
+
+def _describe_image_gemini(b64_image: str, ext: str = "png") -> str:
+    """Envoie une image à Gemini Flash et retourne la description en français.
+
+    Essaie gemini-2.0-flash puis gemini-1.5-flash en cas de quota dépassé (429).
+    Attend entre les tentatives pour respecter les limites de débit.
+    """
+    if not GEMINI_API_KEY:
+        return ""
+
     try:
-        
-        response = ollama.chat(
-            model=model,
-            messages=[{
-                "role": "user",
-                "content": "Describe this image concisely for a RAG system.",
-                "images": [b64_image]}])
-        
-        return response["message"]["content"].strip()
-    
+        import io
+        import time
+        import PIL.Image
+        from google import genai
+
+        img_bytes = base64.b64decode(b64_image)
+        img = PIL.Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        client = genai.Client(api_key=GEMINI_API_KEY)
+
+        for model in _GEMINI_MODELS:
+            for attempt in range(3):
+                try:
+                    response = client.models.generate_content(
+                        model=model,
+                        contents=[img, _GEMINI_PROMPT],
+                    )
+                    return response.text.strip()
+                except Exception as e:
+                    err = str(e)
+                    if "429" in err or "RESOURCE_EXHAUSTED" in err:
+                        if attempt < 2:
+                            time.sleep(20 * (attempt + 1))
+                            continue
+                        # Quota épuisé sur ce modèle → essayer le suivant
+                        logging.warning(f"[VLM] Quota {model} épuisé, essai modèle suivant")
+                        break
+                    logging.warning(f"[VLM {model}] Échec : {e}")
+                    return ""
+
+        logging.warning("[VLM] Tous les modèles Gemini ont atteint leur quota.")
+        return ""
+
     except Exception as e:
-        logging.warning(f"[VLM] ✗ Échec ({model}) : {e}")
+        logging.warning(f"[VLM Gemini] Erreur inattendue : {e}")
         return ""
 
 

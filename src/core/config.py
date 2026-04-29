@@ -8,10 +8,11 @@ from typing import Literal
 PATH_FILE_DOCUMENTS: Path = Path("datasets")
 
 # ─────────────────────────────────────────
-# VLM — Description d'images (Ollama)
-# Mettre à "" pour désactiver
+# VLM — Description d'images (Gemini)
+# Désactivé si GEMINI_API_KEY absent
 # ─────────────────────────────────────────
-VLM_MODEL: str = "llava"
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+GEMINI_VLM_MODEL: str = "gemini-2.0-flash"
 
 # ─────────────────────────────────────────
 # Semantic chunking

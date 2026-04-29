@@ -1,0 +1,191 @@
+name: CI/CD — AgenticRAG
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "README_LINKEDIN.md"
+      - "datasets/**"
+      - "qdrant_storage/**"
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  REGISTRY: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/agenticrag
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Qualité du code
+# ──────────────────────────────────────────────────────────────────────────────
+jobs:
+  ci:
+    name: Lint · Type · Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Ruff — lint
+        run: ruff check src/ backend/ monitoring/
+
+      - name: Ruff — format
+        run: ruff format --check src/ backend/ monitoring/
+
+      - name: Mypy — typage
+        run: mypy src/ backend/ monitoring/
+
+      - name: Pytest
+        run: pytest test/ -q --no-header --cov=src --cov=backend --cov-report=xml --cov-fail-under=0
+        env:
+          QDRANT_URL: "http://localhost:6333"
+          OPENROUTER_API_KEY: "test"
+          LANGFUSE_PUBLIC_KEY: "test"
+          LANGFUSE_SECRET_KEY: "test"
+          GEMINI_API_KEY: "test"
+
+      - name: Upload couverture → Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JOB 2 — Validation des images Docker
+# ──────────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache couches Docker — backend
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache-backend
+          key: buildx-backend-${{ hashFiles('Dockerfile', 'requirements.txt') }}
+          restore-keys: buildx-backend-
+
+      - name: Cache couches Docker — frontend
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache-frontend
+          key: buildx-frontend-${{ hashFiles('frontend/Dockerfile', 'frontend/package-lock.json') }}
+          restore-keys: buildx-frontend-
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: agenticrag-backend:${{ github.sha }}
+          cache-from: type=local,src=/tmp/.buildx-cache-backend
+          cache-to: type=local,dest=/tmp/.buildx-cache-backend,mode=max
+
+      - name: Build frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: agenticrag-frontend:${{ github.sha }}
+          cache-from: type=local,src=/tmp/.buildx-cache-frontend
+          cache-to: type=local,dest=/tmp/.buildx-cache-frontend,mode=max
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JOB 3 — Déploiement Google Cloud Run (main uniquement)
+# ──────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy → Cloud Run
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authentification GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configuration gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configurer Docker → Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - uses: docker/setup-buildx-action@v3
+
+      # ── Build & push backend ────────────────────────────────────────────────
+      - name: Build & push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/backend:${{ github.sha }},${{ env.REGISTRY }}/backend:latest
+
+      # ── Build & push frontend ───────────────────────────────────────────────
+      - name: Build & push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/frontend:${{ github.sha }},${{ env.REGISTRY }}/frontend:latest
+
+      # ── Deploy backend ──────────────────────────────────────────────────────
+      - name: Deploy backend → Cloud Run
+        run: |
+          gcloud run deploy agenticrag-backend \
+            --image="${{ env.REGISTRY }}/backend:${{ github.sha }}" \
+            --region="${{ env.GCP_REGION }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=2Gi \
+            --cpu=2 \
+            --timeout=120 \
+            --set-env-vars="QDRANT_URL=${{ secrets.QDRANT_URL }},DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            --set-secrets="\
+              OPENROUTER_API_KEY=openrouter-api-key:latest,\
+              LANGFUSE_PUBLIC_KEY=langfuse-public-key:latest,\
+              LANGFUSE_SECRET_KEY=langfuse-secret-key:latest,\
+              LANGFUSE_HOST=langfuse-host:latest,\
+              GEMINI_API_KEY=gemini-api-key:latest,\
+              HF_TOKEN=hf-token:latest"
+
+      # ── Deploy frontend ─────────────────────────────────────────────────────
+      - name: Deploy frontend → Cloud Run
+        run: |
+          gcloud run deploy agenticrag-frontend \
+            --image="${{ env.REGISTRY }}/frontend:${{ github.sha }}" \
+            --region="${{ env.GCP_REGION }}" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --memory=512Mi \
+            --cpu=1 \
+            --set-env-vars="NEXT_PUBLIC_API_URL=${{ secrets.BACKEND_URL }}"
+
+      - name: Résumé du déploiement
+        run: |
+          echo "### Déploiement réussi" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit** : \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend** : $(gcloud run services describe agenticrag-backend --region=${{ env.GCP_REGION }} --format='value(status.url)')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend** : $(gcloud run services describe agenticrag-frontend --region=${{ env.GCP_REGION }} --format='value(status.url)')" >> $GITHUB_STEP_SUMMARY

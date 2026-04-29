@@ -16,7 +16,7 @@ from qdrant_client.models import (
 from src.core.logging import logging
 from src.core.exception import AgenticRagException
 from src.core.config import QDRANT_URL, QDRANT_COLLECTION, QDRANT_VECTOR_SIZE
-from src.entity.artifact_entity import TextChunk, TableChunk
+from src.entity.artifact_entity import TextChunk, TableChunk, ImageChunk
 
 
 class VectorStore:
@@ -66,7 +66,7 @@ class VectorStore:
         except Exception as e:
             raise AgenticRagException(e, sys)
 
-    def upsert(self, chunks: List[TextChunk | TableChunk]) -> None:
+    def upsert(self, chunks: List[TextChunk | TableChunk | ImageChunk]) -> None:
         """Indexe les chunks dans Qdrant.
 
         Parameters
